@@ -27,48 +27,57 @@ const languages = [
 const demoResponses = [
   {
     trigger: ['hello', 'hi', 'hey'],
-    response: "Hello! I'm Dr. Whiskers, your friendly counseling assistant. I'm here to help you with questions about plastic surgery procedures. What would you like to know about today?"
+    response:
+      "Hello! I'm Dr. Whiskers, your friendly counseling assistant. I'm here to help you with questions about plastic surgery procedures. What would you like to know about today?",
   },
   {
     trigger: ['rhinoplasty', 'nose job', 'nose surgery'],
-    response: "Rhinoplasty is a surgical procedure to reshape the nose. It can address both cosmetic concerns and functional issues. The recovery typically takes 1-2 weeks for initial healing, with final results visible after several months. Would you like to know about the procedure details or recovery process?"
+    response:
+      'Rhinoplasty is a surgical procedure to reshape the nose. It can address both cosmetic concerns and functional issues. The recovery typically takes 1-2 weeks for initial healing, with final results visible after several months. Would you like to know about the procedure details or recovery process?',
   },
   {
     trigger: ['breast', 'augmentation', 'breast surgery'],
-    response: "Breast augmentation is one of the most common cosmetic procedures. We offer various implant types and sizes to achieve your desired results. The procedure typically takes 1-2 hours, and recovery involves 1-2 weeks of limited activity. What specific aspects would you like to discuss?"
+    response:
+      'Breast augmentation is one of the most common cosmetic procedures. We offer various implant types and sizes to achieve your desired results. The procedure typically takes 1-2 hours, and recovery involves 1-2 weeks of limited activity. What specific aspects would you like to discuss?',
   },
   {
     trigger: ['cost', 'price', 'how much'],
-    response: "Costs vary depending on the specific procedure and individual needs. During a consultation, we can provide detailed pricing information. Many procedures are available with financing options. Would you like to schedule a consultation to discuss pricing for a specific procedure?"
+    response:
+      'Costs vary depending on the specific procedure and individual needs. During a consultation, we can provide detailed pricing information. Many procedures are available with financing options. Would you like to schedule a consultation to discuss pricing for a specific procedure?',
   },
   {
     trigger: ['recovery', 'healing', 'downtime'],
-    response: "Recovery times vary by procedure. Generally, most patients can return to work within 1-2 weeks, with full recovery taking several weeks to months. We provide detailed aftercare instructions and follow-up appointments to ensure optimal healing. What procedure are you considering?"
+    response:
+      'Recovery times vary by procedure. Generally, most patients can return to work within 1-2 weeks, with full recovery taking several weeks to months. We provide detailed aftercare instructions and follow-up appointments to ensure optimal healing. What procedure are you considering?',
   },
   {
     trigger: ['consultation', 'appointment', 'schedule'],
-    response: "I'd be happy to help you schedule a consultation! During your visit, our surgeon will assess your needs, discuss options, and create a personalized treatment plan. Consultations typically take 30-45 minutes. Would you prefer a morning or afternoon appointment?"
-  }
+    response:
+      "I'd be happy to help you schedule a consultation! During your visit, our surgeon will assess your needs, discuss options, and create a personalized treatment plan. Consultations typically take 30-45 minutes. Would you prefer a morning or afternoon appointment?",
+  },
 ];
 
 // Mock translation function
 const translateText = (text: string, targetLanguage: string): string => {
   const translations: Record<string, Record<string, string>> = {
     es: {
-      "Hello! I'm Dr. Whiskers, your friendly counseling assistant.": "¡Hola! Soy Dr. Whiskers, tu asistente de consejería amigable.",
-      "What would you like to know about today?": "¿Qué te gustaría saber hoy?",
-      "Type your message...": "Escribe tu mensaje...",
+      "Hello! I'm Dr. Whiskers, your friendly counseling assistant.":
+        '¡Hola! Soy Dr. Whiskers, tu asistente de consejería amigable.',
+      'What would you like to know about today?': '¿Qué te gustaría saber hoy?',
+      'Type your message...': 'Escribe tu mensaje...',
     },
     fr: {
-      "Hello! I'm Dr. Whiskers, your friendly counseling assistant.": "Bonjour! Je suis Dr. Whiskers, votre assistant de conseil amical.",
-      "What would you like to know about today?": "Que souhaitez-vous savoir aujourd'hui?",
-      "Type your message...": "Tapez votre message...",
+      "Hello! I'm Dr. Whiskers, your friendly counseling assistant.":
+        'Bonjour! Je suis Dr. Whiskers, votre assistant de conseil amical.',
+      'What would you like to know about today?': "Que souhaitez-vous savoir aujourd'hui?",
+      'Type your message...': 'Tapez votre message...',
     },
     de: {
-      "Hello! I'm Dr. Whiskers, your friendly counseling assistant.": "Hallo! Ich bin Dr. Whiskers, Ihr freundlicher Beratungsassistent.",
-      "What would you like to know about today?": "Was möchten Sie heute wissen?",
-      "Type your message...": "Geben Sie Ihre Nachricht ein...",
-    }
+      "Hello! I'm Dr. Whiskers, your friendly counseling assistant.":
+        'Hallo! Ich bin Dr. Whiskers, Ihr freundlicher Beratungsassistent.',
+      'What would you like to know about today?': 'Was möchten Sie heute wissen?',
+      'Type your message...': 'Geben Sie Ihre Nachricht ein...',
+    },
   };
 
   return translations[targetLanguage]?.[text] || text;
@@ -78,7 +87,9 @@ export function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [currentLanguage, setCurrentLanguage] = useState('en');
-  const [catExpression, setCatExpression] = useState<'neutral' | 'happy' | 'concerned' | 'thinking'>('neutral');
+  const [catExpression, setCatExpression] = useState<
+    'neutral' | 'happy' | 'concerned' | 'thinking'
+  >('neutral');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -111,7 +122,7 @@ export function ChatInterface() {
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setInputText('');
     setCatExpression('thinking');
 
@@ -125,18 +136,18 @@ export function ChatInterface() {
         timestamp: new Date(),
       };
 
-      setMessages(prev => [...prev, catMessage]);
+      setMessages((prev) => [...prev, catMessage]);
       setCatExpression('neutral');
     }, 1000);
   };
 
   const generateResponse = (input: string): string => {
     for (const demo of demoResponses) {
-      if (demo.trigger.some(trigger => input.includes(trigger))) {
+      if (demo.trigger.some((trigger) => input.includes(trigger))) {
         return demo.response;
       }
     }
-    
+
     return "That's an interesting question! Plastic surgery is a personal decision that requires careful consideration. I'd recommend scheduling a consultation where our experienced surgeons can provide personalized advice based on your specific needs and goals. Is there a particular procedure you're curious about?";
   };
 
@@ -147,12 +158,12 @@ export function ChatInterface() {
 
   const getPlaceholderText = () => {
     const placeholders: Record<string, string> = {
-      en: "Type your message...",
-      es: "Escribe tu mensaje...",
-      fr: "Tapez votre message...",
-      de: "Geben Sie Ihre Nachricht ein...",
-      ja: "メッセージを入力...",
-      ko: "메시지를 입력하세요...",
+      en: 'Type your message...',
+      es: 'Escribe tu mensaje...',
+      fr: 'Tapez votre message...',
+      de: 'Geben Sie Ihre Nachricht ein...',
+      ja: 'メッセージを入力...',
+      ko: '메시지를 입력하세요...',
     };
     return placeholders[currentLanguage] || placeholders.en;
   };
@@ -164,7 +175,7 @@ export function ChatInterface() {
         <div className="mb-6">
           <SpottedCat expression={catExpression} size={160} />
         </div>
-        
+
         <div className="text-center mb-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-2">Dr. Whiskers</h2>
           <p className="text-sm text-gray-600">Plastic Surgery Counselor</p>
@@ -224,9 +235,11 @@ export function ChatInterface() {
                 }`}
               >
                 <p className="whitespace-pre-wrap">{message.text}</p>
-                <span className={`text-xs mt-2 block ${
-                  message.sender === 'user' ? 'text-blue-100' : 'text-gray-500'
-                }`}>
+                <span
+                  className={`text-xs mt-2 block ${
+                    message.sender === 'user' ? 'text-blue-100' : 'text-gray-500'
+                  }`}
+                >
                   {message.timestamp.toLocaleTimeString()}
                 </span>
               </div>
