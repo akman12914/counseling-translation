@@ -11,6 +11,7 @@ import { SpottedCat } from './SpottedCat';
 import { Send, Globe, MessageCircle, Heart, Clock, Shield } from 'lucide-react';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
+import TtsDiag from './TtsDiag';
 // 기존: import InterPreter from './Interpreter';
 const InterPreter = dynamic(() => import('./Interpreter'), { ssr: false });
 
@@ -114,44 +115,51 @@ export function TabbedChatInterface() {
     setCatExpression('happy');
   }, []);
 
-  const handleSendMessage = () => {
-    if (!inputText.trim()) return;
+const handleSendMessage = async () => {
+  if (!inputText.trim()) return;
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      text: inputText,
-      sender: 'user',
+  const userMsg: Message = {
+    id: Date.now().toString(),
+    text: inputText,
+    sender: "user",
+    timestamp: new Date(),
+  };
+  setMessages((prev) => [...prev, userMsg]);
+  setInputText("");
+  setCatExpression("thinking");
+
+  try {
+    const lang = currentLanguage === "ko" ? "ko" : "th";
+    const r = await fetch("/api/llm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: userMsg.text, lang }),
+    });
+    const { reply } = await r.json();
+
+    const botMsg: Message = {
+      id: (Date.now() + 1).toString(),
+      text: reply,
+      sender: "cat",
       timestamp: new Date(),
     };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setInputText('');
-    setCatExpression('thinking');
-
-    // Show notification if user is not on chat tab
-    if (activeTab !== 'chat') {
-      setHasNewMessage(true);
-    }
-
-    // Generate response
-    setTimeout(() => {
-      const response = generateResponse(inputText.toLowerCase());
-      const catMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: response,
-        sender: 'cat',
+    setMessages((prev) => [...prev, botMsg]);
+  } catch (e) {
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: (Date.now() + 2).toString(),
+        text: "⚠️ 서버 응답 오류. 잠시 후 다시 시도해주세요.",
+        sender: "cat",
         timestamp: new Date(),
-      };
+      },
+    ]);
+  } finally {
+    setCatExpression("neutral");
+    if (activeTab !== "chat") setHasNewMessage(true);
+  }
+};
 
-      setMessages((prev) => [...prev, catMessage]);
-      setCatExpression('neutral');
-
-      // Show notification if user is not on chat tab
-      if (activeTab !== 'chat') {
-        setHasNewMessage(true);
-      }
-    }, 1000);
-  };
 
   const generateResponse = (input: string): string => {
     for (const demo of demoResponses) {
@@ -189,6 +197,7 @@ export function TabbedChatInterface() {
   return (
     <div className="h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex flex-col overflow-hidden">
       <div className="flex-1 p-3 md:p-6 lg:p-8 max-w-4xl mx-auto w-full min-h-0">
+        <TtsDiag />
         <Tabs value={activeTab} onValueChange={handleTabChange} className="h-full flex flex-col">
           <TabsList className="grid w-full grid-cols-2 mb-4 h-12 md:h-10">
             <TabsTrigger value="meet" className="flex items-center gap-2 text-sm md:text-base">

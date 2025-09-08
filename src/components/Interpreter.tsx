@@ -1,100 +1,158 @@
-'use client';
-import { languages } from 'eslint-plugin-prettier';
-import React, { useMemo, useState } from 'react';
-import { set } from 'react-hook-form';
-import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
+"use client";
+import React, { useMemo, useState } from "react";
+import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition";
 
-//한 턴의 대화구조 정의
 type Turn = {
-  user_th: string; //환자 원문(태국어)
-  user_ko: string; //환자 번역문(한국어)
-  ai_th: string; //상담사 응답(태국어)
-  ai_ko: string; //상담사 응답 한국어 번역(의사용)
+  user_local: string;  // 입력 언어 원문(TH 또는 KO)
+  ai_local: string;    // 동일 언어 LLM 응답
+  // 선택: 의사용 한국어 로그(태국어 세션일 때만 채움)
+  user_ko?: string;
+  ai_ko?: string;
 };
+
 export default function InterPreter() {
   const { transcript, listening, resetTranscript, browserSupportsSpeechRecognition } =
     useSpeechRecognition();
 
-  const synth = useMemo(() => (typeof window !== 'undefined' ? window.speechSynthesis : null), []);
-  const [turns, setTurns] = useState<Turn[]>([]); //대화 기록
+  const synth = useMemo(
+    () => (typeof window !== "undefined" ? window.speechSynthesis : null),
+    []
+  );
+
+  // 🔽 사용자가 말할(=답변받을) 언어: "th" | "ko"
+  const [srcLang, setSrcLang] = useState<"th" | "ko">("th");
+  const [turns, setTurns] = useState<Turn[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [logKo, setLogKo] = useState(true); // 태국어 세션에서 KO 로그 저장할지
 
   if (!browserSupportsSpeechRecognition) {
-    return <span>Browser doesn't support speech recognition.</span>;
+    return <span>이 브라우저는 음성 인식을 지원하지 않습니다. (Chrome/Edge 권장)</span>;
   }
 
-  const speakTH = (text: string) => {
+  const speakLocal = (text: string, lang: "th" | "ko") => {
     if (!synth) return;
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'th-TH';
+    utterance.lang = lang === "th" ? "th-TH" : "ko-KR";
+    try { synth.cancel(); } catch {}
     synth.speak(utterance);
   };
 
-  const start = () =>
+  const start = () => {
+    setErr(null);
+    resetTranscript();
     SpeechRecognition.startListening({
-      languages: 'th-TH',
+      language: srcLang === "th" ? "th-TH" : "ko-KR",
       interimResults: false,
       continuous: false,
     });
+  };
 
   const stop = () => SpeechRecognition.stopListening();
 
-  //음성->번역->답변->번역->로그->TTS
+  // 음성 -> (동일 언어) LLM 응답 -> (선택) KO로그 번역 -> 저장 -> (동일 언어) TTS
   const oneTurn = async () => {
-    const user_th = transcript.trim();
-    if (!user_th || isLoading) return;
+    const user_local = transcript.trim();
+    if (!user_local || isLoading) return;
     setIsLoading(true);
+    setErr(null);
 
     try {
-      // 1) 환자 발화 → 한국어 번역(의사용 로그)
-      const uKo = await fetch('/api/translate', {
-        method: 'POST',
-        body: JSON.stringify({ text: user_th, src: 'th', tgt: 'ko' }),
-      }).then((r) => r.json());
+      // 1) LLM: 입력 언어로만 답하도록 서버에서 보장(/api/llm)
+      const aiRes = await fetch("/api/llm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: user_local, lang: srcLang }),
+      });
+      if (!aiRes.ok) {
+        const t = await aiRes.text();
+        throw new Error("LLM 응답 실패: " + t);
+      }
+      const { reply } = await aiRes.json(); // reply = 동일 언어 응답
 
-      // 2) LLM(또는 규칙)로 태국어 응답 생성
-      const aiTh = await fetch('/api/reply', {
-        method: 'POST',
-        body: JSON.stringify({ text_th: user_th }),
-      }).then((r) => r.json());
+      // 2) (선택) 태국어 세션이면 의사용 KO 로그 번역
+      let user_ko: string | undefined;
+      let ai_ko: string | undefined;
+      if (logKo && srcLang === "th") {
+        const [uKoRes, aKoRes] = await Promise.all([
+          fetch("/api/translate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: user_local, src: "th", tgt: "ko" }),
+          }),
+          fetch("/api/translate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: reply, src: "th", tgt: "ko" }),
+          }),
+        ]);
+        if (!uKoRes.ok || !aKoRes.ok) throw new Error("KO 로그 번역 실패");
+        const uKo = await uKoRes.json();
+        const aKo = await aKoRes.json();
+        user_ko = uKo.text;
+        ai_ko = aKo.text;
+      }
 
-      // 3) 봇 응답(태국어) → 한국어 번역(의사용 로그)
-      const aiKo = await fetch('/api/translate', {
-        method: 'POST',
-        body: JSON.stringify({ text: aiTh.text_th, src: 'th', tgt: 'ko' }),
-      }).then((r) => r.json());
+      // 3) 로그 저장(선택 필드 포함)
+      const turn: Turn = { user_local, ai_local: reply, user_ko, ai_ko };
+      setTurns((prev) => [...prev, turn]);
+      fetch("/api/log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lang: srcLang, ...turn }),
+      }).catch(() => {});
 
-      // 4) 한 턴의 대화 결과 저장
-      const turn: Turn = {
-        user_th,
-        user_ko: uKo.text,
-        ai_th: aiTh.text_th,
-        ai_ko: aiKo.text,
-      };
-      setTurns((t) => [...t, turn]);
-
-      // 5) 로그 저장(백엔드에 양쪽 언어로 보관)
-      await fetch('/api/log', { method: 'POST', body: JSON.stringify(turn) });
-
-      // 6) 태국어 TTS로 즉시 답변 재생
-      speakTH(aiTh.text_th);
+      // 4) 동일 언어로 발성
+      speakLocal(reply, srcLang);
+    } catch (e: any) {
+      console.error(e);
+      setErr(e?.message || "처리 중 오류가 발생했습니다.");
     } finally {
-      resetTranscript(); // 음성 인식 결과 초기화
-      stop(); // 음성 인식 중지
-      setIsLoading(false); // 처리 완료
+      resetTranscript();
+      stop();
+      setIsLoading(false);
     }
   };
 
   return (
     <div className="max-w-xl mx-auto p-4 space-y-3">
-      {/* 음성 인식 및 전송 버튼 */}
+      {/* 언어 전환 & KO 로그 스위치 */}
+      <div className="flex items-center gap-3 text-sm mb-1">
+        <label className="flex items-center gap-1">
+          <span>입력/응답 언어</span>
+          <select
+            value={srcLang}
+            onChange={(e) => setSrcLang(e.target.value as "th" | "ko")}
+            className="border rounded px-2 py-1"
+          >
+            <option value="th">태국어</option>
+            <option value="ko">한국어</option>
+          </select>
+        </label>
+        <label className="flex items-center gap-1 ml-4">
+          <input
+            type="checkbox"
+            checked={logKo}
+            onChange={(e) => setLogKo(e.target.checked)}
+          />
+          의사용 한국어 로그 저장(TH 세션)
+        </label>
+        <button onClick={() => speakLocal("테스트 음성입니다.", "ko")} className="ml-auto border px-2 py-1 rounded">
+          🔊 KO 테스트
+        </button>
+        <button onClick={() => speakLocal("สวัสดีค่ะ ทดสอบเสียงค่ะ", "th")} className="border px-2 py-1 rounded">
+          🔊 TH 테스트
+        </button>
+      </div>
+
+      {/* 컨트롤 */}
       <div className="flex gap-2 items-center">
         <button
           onClick={start}
           disabled={isLoading}
           className="px-3 py-1 rounded bg-blue-600 text-white"
         >
-          🎤 {listening ? '듣는 중…' : '듣기 시작(TH)'}
+          🎤 {listening ? "듣는 중…" : `듣기 시작(${srcLang.toUpperCase()})`}
         </button>
         <button onClick={oneTurn} disabled={isLoading} className="px-3 py-1 rounded border">
           전송(1턴)
@@ -108,25 +166,19 @@ export default function InterPreter() {
         >
           초기화
         </button>
-        <span className="text-sm text-gray-600">STT: {transcript || '…'}</span>
+        <span className="text-sm text-gray-600">STT: {transcript || "…"}</span>
       </div>
 
-      {/* 대화 로그 표시 */}
+      {err && <div className="text-sm text-red-600">⚠ {err}</div>}
+
+      {/* 대화 로그 */}
       <div className="space-y-2">
         {turns.map((t, i) => (
           <div key={i} className="border rounded p-3 bg-white">
-            <div>
-              <b>👤 환자(TH):</b> {t.user_th}
-            </div>
-            <div className="text-gray-600">
-              <b>👤 환자(KO):</b> {t.user_ko}
-            </div>
-            <div className="mt-2 text-blue-700">
-              <b>🤖 봇(TH):</b> {t.ai_th}
-            </div>
-            <div className="text-gray-600">
-              <b>🤖 봇(KO):</b> {t.ai_ko}
-            </div>
+            <div><b>👤 사용자({srcLang.toUpperCase()}):</b> {t.user_local}</div>
+            {t.user_ko && <div className="text-gray-600"><b>👤 사용자(KO):</b> {t.user_ko}</div>}
+            <div className="mt-2 text-blue-700"><b>🤖 봇({srcLang.toUpperCase()}):</b> {t.ai_local}</div>
+            {t.ai_ko && <div className="text-gray-600"><b>🤖 봇(KO):</b> {t.ai_ko}</div>}
           </div>
         ))}
       </div>
