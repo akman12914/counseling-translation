@@ -1,4 +1,4 @@
-import { TabbedChatInterface } from "../components/TabbedChatInterface";
+import { TabbedChatInterface } from "../components/MeetIntro";
 
 export default function App() {
   return (
