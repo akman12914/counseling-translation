@@ -193,7 +193,7 @@ export function TabbedChatInterface() {
   };
 
   return (
-    <div className="h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex flex-col overflow-hidden">
+    <div className="min-h-screen w-full bg-gradient-to-br from-blue-50 via-white to-purple-50 flex flex-col">
       <div className="flex-1 p-3 md:p-6 lg:p-8 max-w-4xl mx-auto w-full min-h-0">
         <div className="flex-1 overflow-y-auto">
           <div className="space-y-6">
@@ -299,7 +299,7 @@ export function TabbedChatInterface() {
             </div>
 
             {/* Quick Start */}
-            <Card className="bg-blue-50 border-blue-200">
+            <Card className="bg-blue-50 border-blue-200 mb-5">
               <CardContent className="pt-6">
                 <h3 className="font-semibold text-blue-900 mb-3">
                   คุณพร้อมที่จะเริ่มการปรึกษาแล้วหรือยัง?
