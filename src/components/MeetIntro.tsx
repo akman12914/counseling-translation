@@ -26,7 +26,7 @@ interface Message {
 const languages = [
   { code: 'en', name: 'English' },
   { code: 'es', name: 'Spanish' },
-  { code: 'fr', name: 'French' },
+  { code: 'th', name: 'ภาษาไทย' },
   { code: 'de', name: 'German' },
   { code: 'ja', name: 'Japanese' },
   { code: 'ko', name: 'Korean' },
@@ -86,7 +86,7 @@ const specialties = [
 export function TabbedChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
-  const [currentLanguage, setCurrentLanguage] = useState('en');
+  const [currentLanguage, setCurrentLanguage] = useState('th');
   const [catExpression, setCatExpression] = useState<
     'neutral' | 'happy' | 'concerned' | 'thinking'
   >('neutral');
@@ -207,8 +207,8 @@ export function TabbedChatInterface() {
                   <Image
                     src="/little-kid-wearing-doctor-costume-play.png"
                     alt="Dr. Whiskers"
-                    width={120}
-                    height={120}
+                    width={100}
+                    height={100}
                     className="rounded-full"
                   />
                 </div>
@@ -218,17 +218,12 @@ export function TabbedChatInterface() {
               </div>
               <div>
                 <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-3">
-                  พบกับ Dr. Whiskers
+                  ยินดีต้อนรับสู่ Adv. Smart
                 </h1>
                 <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
-                  ที่ปรึกษา AI ที่เป็นมิตรของคุณซึ่งเชี่ยวชาญด้านการให้คำปรึกษาศัลยกรรมตกแต่ง
-                  ฉันพร้อมให้คำแนะนำเฉพาะบุคคลและตอบทุกคำถามของคุณ
+                  ฉันคือที่ปรึกษา AI ที่เชี่ยวชาญด้านการให้คำปรึกษาศัลยกรรมความงามอย่างเป็นมิตร
+                  หากต้องการคำปรึกษาแบบเฉพาะบุคคล กรุณาคลิกที่หูฟังและถามคำถามได้เลย
                 </p>
-                <div className="mt-4">
-                  <Badge variant="secondary" className="px-4 py-2">
-                    ให้บริการตลอด 24 ชั่วโมง
-                  </Badge>
-                </div>
               </div>
             </div>
 
@@ -237,7 +232,7 @@ export function TabbedChatInterface() {
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <Globe className="w-5 h-5 text-blue-600" />
-                  รองรับหลายภาษา
+                  การรองรับหลายภาษา
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -253,7 +248,7 @@ export function TabbedChatInterface() {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-sm text-gray-500 mt-2">ฉันสามารถสื่อสารกับคุณได้หลายภาษา</p>
+                <p className="text-sm text-gray-500 mt-2 pb-4">รองรับหลายภาษา รวมถึงภาษาไทย</p>
               </CardContent>
             </Card>
 
@@ -261,21 +256,42 @@ export function TabbedChatInterface() {
             <div className="grid md:grid-cols-3 gap-4">
               {specialties.map((specialty, index) => (
                 <Card key={index} className="text-center hover:shadow-lg transition-shadow">
-                  <CardContent className="pt-6">
-                    <specialty.icon className="w-12 h-12 text-blue-600 mx-auto mb-3" />
+                  <CardContent className="pt-6 ">
+                    <specialty.icon className="text-blue-600 mx-auto mb-3 h-12 w-12" />
                     <h3 className="font-semibold text-gray-900 mb-2">
                       {specialty.icon === Heart
-                        ? 'ศัลยกรรมหน้าอก'
+                        ? 'ศัลยกรรมใบหน้า'
                         : specialty.icon === Clock
-                          ? 'ศัลยกรรมใบหน้า'
-                          : 'ปรับรูปร่างร่างกาย'}
+                          ? 'ศัลยกรรมรูปร่าง'
+                          : 'ศัลยกรรมเล็ก'}
                     </h3>
-                    <p className="text-sm text-gray-600">
-                      {specialty.icon === Heart
-                        ? 'การเสริม ลด และสร้างหน้าอกใหม่'
-                        : specialty.icon === Clock
-                          ? 'เสริมจมูก ดึงหน้า และฟื้นฟูใบหน้า'
-                          : 'ดูดไขมัน ตัดหน้าท้อง และกระชับรูปร่าง'}
+                    <p className="text-sm text-gray-600 overflow-hidden text-ellipsis line-clamp-2 mb-2">
+                      {specialty.icon === Heart ? (
+                        <span>
+                          การจำลอง 3D <br />
+                          ขั้นสูงและการวิเคราะห์โครงกระดูก
+                          เพื่อคำนวณสัดส่วนทองคำที่เหมาะสมของแต่ละบุคคล AI
+                          จะช่วยประเมินความเหมาะสมทางการแพทย์ของหัตถการมากกว่า 20 ประเภท เช่น
+                          การทำตาสองชั้น, ศัลยกรรมจมูก, ศัลยกรรมโครงหน้า
+                          และยังสามารถคาดการณ์ผลลัพธ์ก่อน–หลังการผ่าตัด
+                          และกระบวนการฟื้นตัวได้อย่างแม่นยำ
+                        </span>
+                      ) : specialty.icon === Clock ? (
+                        <span>
+                          การวิเคราะห์ข้อมูล BMI, <br />
+                          อัตราส่วนไขมันในร่างกาย และปริมาณมวลกล้ามเนื้ออย่างครบถ้วน
+                          เพื่อเสนอวิธีการศัลยกรรมที่เหมาะสมที่สุด เช่น ดูดไขมัน, ศัลยกรรมหน้าท้อง,
+                          ศัลยกรรมหน้าอก โดยคำนึงถึงรูปร่างและไลฟ์สไตล์ของแต่ละบุคคล
+                          พร้อมทั้งคาดการณ์ผลลัพธ์ที่สมจริง และแนะนำแนวทางลดความเสี่ยงของผลข้างเคียง
+                        </span>
+                      ) : (
+                        <span>
+                          การเก็บข้อมูลลักษณะเฉพาะและระยะเวลาการคงอยู่ของหัตถการแบบไม่ผ่าตัด เช่น
+                          โบท็อกซ์, ฟิลเลอร์, ร้อยไหม ของแต่ละแบรนด์ AI
+                          จะออกแบบแผนการรักษาแบบเป็นขั้นตอนและกำหนดตารางการดูแลรักษาต่อเนื่อง
+                          โดยพิจารณาจากอายุ สภาพผิว และงบประมาณ
+                        </span>
+                      )}
                     </p>
                   </CardContent>
                 </Card>
@@ -285,10 +301,12 @@ export function TabbedChatInterface() {
             {/* Quick Start */}
             <Card className="bg-blue-50 border-blue-200">
               <CardContent className="pt-6">
-                <h3 className="font-semibold text-blue-900 mb-3">พร้อมเริ่มปรึกษาแล้วหรือยัง?</h3>
+                <h3 className="font-semibold text-blue-900 mb-3">
+                  คุณพร้อมที่จะเริ่มการปรึกษาแล้วหรือยัง?
+                </h3>
                 <p className="text-blue-800 mb-4">
-                  เปลี่ยนไปที่แท็บแชทเพื่อเริ่มพูดคุยกับ Dr. Whiskers ฉันพร้อมช่วยเหลือเรื่องขั้นตอน
-                  การฟื้นตัว ค่าใช้จ่าย และการนัดหมาย
+                  หากคุณไม่แน่ใจว่าจะเริ่มถามจากตรงไหน สามารถตอบคำถามด้านล่างนี้แทนได้ AI
+                  จะให้คำปรึกษาอย่างละเอียดตามข้อมูลที่คุณกรอก
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
@@ -300,7 +318,7 @@ export function TabbedChatInterface() {
                       setInputText('สอบถามเกี่ยวกับการเสริมจมูก');
                     }}
                   >
-                    💃 สอบถามเรื่องการเสริมจมูก
+                    💃 กรุณาเลือกบริเวณที่คุณสนใจทำหัตถการ
                   </Button>
                   <Button
                     variant="outline"
@@ -310,7 +328,7 @@ export function TabbedChatInterface() {
                       setInputText('ค่าใช้จ่ายมีอะไรบ้าง');
                     }}
                   >
-                    💰 สอบถามเรื่องค่าใช้จ่าย
+                    📅 กรุณาบอกช่วงอายุของคุณ
                   </Button>
                   <Button
                     variant="outline"
@@ -320,7 +338,7 @@ export function TabbedChatInterface() {
                       setInputText('ระยะเวลาฟื้นตัวนานเท่าไหร่');
                     }}
                   >
-                    ⏰ สอบถามเรื่องการฟื้นตัว
+                    ⏰ คุณเคยทำศัลยกรรมมาก่อนหรือไม่?
                   </Button>
                   <Button
                     variant="outline"
@@ -330,18 +348,8 @@ export function TabbedChatInterface() {
                       setInputText('ต้องการนัดปรึกษา');
                     }}
                   >
-                    📅 นัดปรึกษา
+                    💰 งบประมาณที่คุณคาดไว้คือเท่าไร
                   </Button>
-                </div>
-
-                <div className="text-sm text-blue-700">
-                  <p className="font-medium mb-1">หรือสอบถามเกี่ยวกับ:</p>
-                  <ul className="list-disc list-inside space-y-1">
-                    <li>ขั้นตอนและเทคนิคเฉพาะ</li>
-                    <li>ระยะเวลาฟื้นตัวและการดูแลหลังผ่าตัด</li>
-                    <li>การนัดหมายและราคาค่าปรึกษา</li>
-                    <li>ความคาดหวังก่อนและหลังศัลยกรรม</li>
-                  </ul>
                 </div>
               </CardContent>
             </Card>
