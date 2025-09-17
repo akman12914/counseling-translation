@@ -3,34 +3,29 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 import Image from 'next/image';
+import { matchCategory, getRandomFromCategory } from './qaMap';
+import { runDemoScenario } from './demo';
 
 type Turn = {
-  user_local: string;   // 입력 언어 원문(TH 또는 KO)
-  ai_local: string;     // 동일 언어 LLM 응답
-  user_ko?: string;     // TH 세션일 때 의사용 한국어 로그
+  user_local: string;
+  ai_local: string;
+  user_ko?: string; // 태국어 세션일 경우 의사용 한국어 로그
   ai_ko?: string;
 };
 
 interface InterpreterProps {
   clicked: boolean;
   setClicked: (val: boolean) => void;
-  lang: 'th' | 'ko'; // 상위 MeetIntro에서 내려주는 현재 언어
+  lang: 'th' | 'ko';
 }
 
 export default function InterPreter({ clicked, setClicked, lang }: InterpreterProps) {
-  const { transcript, listening, resetTranscript, browserSupportsSpeechRecognition } =
-    useSpeechRecognition();
-
-  const synth = useMemo(
-    () => (typeof window !== 'undefined' ? window.speechSynthesis : null),
-    []
-  );
-
+  const { transcript, resetTranscript, browserSupportsSpeechRecognition } = useSpeechRecognition();
   const [srcLang, setSrcLang] = useState<'th' | 'ko'>(lang);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [logKo, setLogKo] = useState(true); // 태국어 세션에서 KO 로그 저장할지
+  const [logKo, setLogKo] = useState(true);
 
   useEffect(() => {
     setSrcLang(lang);
@@ -40,13 +35,46 @@ export default function InterPreter({ clicked, setClicked, lang }: InterpreterPr
     return <span>이 브라우저는 음성 인식을 지원하지 않습니다. (Chrome/Edge 권장)</span>;
   }
 
-  const speakLocal = (text: string, lang: 'th' | 'ko') => {
-    if (!synth) return;
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang === 'th' ? 'th-TH' : 'ko-KR';
-    try { synth.cancel(); } catch {}
-    synth.speak(utterance);
-  };
+  // ✅ ElevenLabs Alice TTS
+  // async function speakWithAlice(text: string) {
+  //   try {
+  //     const res = await fetch('/api/tts', {
+  //       method: 'POST',
+  //       headers: { 'Content-Type': 'application/json' },
+  //       body: JSON.stringify({
+  //         text,
+  //         voice: 'Alice',
+  //         model_id: 'eleven_multilingual_v2',
+  //       }),
+  //     });
+  //     if (!res.ok) throw new Error('ElevenLabs 요청 실패');
+  //     const arrayBuffer = await res.arrayBuffer();
+  //     const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
+  //     const url = URL.createObjectURL(blob);
+  //     const audio = new Audio(url);
+  //     await audio.play();
+  //   } catch (e) {
+  //     console.error('Alice TTS 실패:', e);
+  //     if (typeof window !== 'undefined') {
+  //       const utter = new SpeechSynthesisUtterance(text);
+  //       utter.lang = srcLang === 'th' ? 'th-TH' : 'ko-KR';
+  //       window.speechSynthesis.speak(utter);
+  //     }
+  //   }
+  // }
+
+  // Interpreter.tsx (발췌)
+  async function speakCounselor(text: string, lang: 'ko' | 'th') {
+    const res = await fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, lang, role: 'counselor' }), // ✅ 역할 명시
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const url = URL.createObjectURL(await res.blob());
+    const audio = new Audio(url);
+    await audio.play();
+  }
 
   const start = () => {
     setErr(null);
@@ -60,7 +88,7 @@ export default function InterPreter({ clicked, setClicked, lang }: InterpreterPr
 
   const stop = () => SpeechRecognition.stopListening();
 
-  // 음성 -> (동일 언어) LLM 응답 -> (선택) KO로그 번역 -> 저장 -> (동일 언어) TTS
+  // 🎤 한 턴: QA 우선 → 없으면 LLM → (TH면) KO로그 → TTS
   const oneTurn = async () => {
     const user_local = transcript.trim();
     if (!user_local || isLoading) return;
@@ -68,19 +96,25 @@ export default function InterPreter({ clicked, setClicked, lang }: InterpreterPr
     setErr(null);
 
     try {
-      // 1) LLM: 입력 언어로만 답하도록 서버에서 보장(/api/llm)
-      const aiRes = await fetch('/api/llm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: user_local, lang: srcLang }),
-      });
-      if (!aiRes.ok) {
-        const t = await aiRes.text();
-        throw new Error('LLM 응답 실패: ' + t);
-      }
-      const { reply } = await aiRes.json(); // reply = 동일 언어 응답
+      let reply: string | null = null;
 
-      // 2) (선택) 태국어 세션이면 의사용 KO 로그 번역
+      // 1) QA 매칭
+      const cat = matchCategory(user_local);
+      if (cat) reply = getRandomFromCategory(cat);
+
+      // 2) 없으면 LLM 호출
+      if (!reply) {
+        const aiRes = await fetch('/api/llm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: user_local, lang: srcLang }),
+        });
+        if (!aiRes.ok) throw new Error('LLM 응답 실패');
+        const { reply: llmReply } = await aiRes.json();
+        reply = llmReply;
+      }
+
+      // 3) 태국어 세션이면 → 한국어 로그 번역
       let user_ko: string | undefined;
       let ai_ko: string | undefined;
       if (logKo && srcLang === 'th') {
@@ -96,14 +130,15 @@ export default function InterPreter({ clicked, setClicked, lang }: InterpreterPr
             body: JSON.stringify({ text: reply, src: 'th', tgt: 'ko' }),
           }),
         ]);
-        if (!uKoRes.ok || !aKoRes.ok) throw new Error('KO 로그 번역 실패');
-        const uKo = await uKoRes.json();
-        const aKo = await aKoRes.json();
-        user_ko = uKo.text;
-        ai_ko = aKo.text;
+        if (uKoRes.ok && aKoRes.ok) {
+          const uKo = await uKoRes.json();
+          const aKo = await aKoRes.json();
+          user_ko = uKo.text;
+          ai_ko = aKo.text;
+        }
       }
 
-      // 3) 로그 저장(선택 필드 포함)
+      // 4) 로그 저장 (태국어일 경우 user_ko/ai_ko도 함께 저장)
       const turn: Turn = { user_local, ai_local: reply, user_ko, ai_ko };
       setTurns((prev) => [...prev, turn]);
       fetch('/api/log', {
@@ -112,11 +147,11 @@ export default function InterPreter({ clicked, setClicked, lang }: InterpreterPr
         body: JSON.stringify({ lang: srcLang, ...turn }),
       }).catch(() => {});
 
-      // 4) 동일 언어로 발성
-      speakLocal(reply, srcLang);
+      // 5) Alice TTS 발성
+      await speakCounselor(reply, srcLang);
     } catch (e: any) {
       console.error(e);
-      setErr(e?.message || '처리 중 오류가 발생했습니다.');
+      setErr(e?.message || '처리 중 오류');
     } finally {
       resetTranscript();
       stop();
@@ -126,11 +161,13 @@ export default function InterPreter({ clicked, setClicked, lang }: InterpreterPr
 
   return (
     <div className="max-w-xl mx-auto p-4 space-y-3">
-      {/* 컨트롤 (가운데 정렬) */}
       <div className="flex flex-col items-center gap-4">
-        {/* 듣기 버튼: 한 번 누르면 clicked=true 유지 */}
+        {/* 듣기 버튼 */}
         <button
-          onClick={() => { if (!clicked) setClicked(true); start(); }}
+          onClick={() => {
+            if (!clicked) setClicked(true);
+            start();
+          }}
           disabled={isLoading}
           className={`cursor-pointer ${clicked ? 'pt-96' : 'pt-0'}`}
           aria-label="듣기 시작"
@@ -142,26 +179,42 @@ export default function InterPreter({ clicked, setClicked, lang }: InterpreterPr
             height={60}
           />
         </button>
- {/* ✅ 전송 버튼: clicked=true일 때만 노출되는 원형 버튼 */}
-  {clicked && (
-    <button
-      onClick={oneTurn}
-      disabled={isLoading}
-      aria-label="전송"
-      title="전송"
-      className="flex items-center justify-center w-2 h-2 rounded-full bg-white shadow-md hover:shadow-lg transition cursor-pointer"
-    >
 
-    </button>
-  )}
-
+        {/* 전송 버튼 */}
+        {clicked && (
+          <button
+            onClick={oneTurn}
+            disabled={isLoading}
+            aria-label="전송"
+            title="전송"
+            className="flex items-center justify-center w-2 h-2 rounded-full bg-white shadow-md hover:shadow-lg transition cursor-pointer"
+          ></button>
+        )}
       </div>
 
-      {/* 상태/오류 */}
+      {/* 데모 시나리오 버튼 (user + 상담사 모두 TTS) */}
+      <div className="absolute bottom-[-50px] left-1/2 -translate-x-1/2 flex gap-2 z-50">
+        <button
+          onClick={() => runDemoScenario('눈수술', srcLang)}
+          className="px-3 py-2 rounded bg-blue-500 text-white"
+        >
+          눈수술 데모
+        </button>
+        <button
+          onClick={() => runDemoScenario('코수술', srcLang)}
+          className="px-3 py-2 rounded bg-green-600 text-white"
+        >
+          코수술 데모
+        </button>
+        <button
+          onClick={() => runDemoScenario('안면윤곽', srcLang)}
+          className="px-3 py-2 rounded bg-purple-600 text-white"
+        >
+          안면윤곽 데모
+        </button>
+      </div>
+
       {err && <div className="text-sm text-red-600 text-center">⚠ {err}</div>}
-      {/* 필요하면 아래 디버그 정보 노출
-      <div className="text-center text-xs text-gray-600">STT: {transcript || '…'} {listening?'(listening)':''}</div>
-      */}
     </div>
   );
 }

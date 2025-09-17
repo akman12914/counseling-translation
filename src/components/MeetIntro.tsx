@@ -157,7 +157,7 @@ export function MeetIntro() {
         <video
           ref={videoRef}
           className={`absolute inset-0 -z-10 w-full h-full object-cover transition-opacity duration-500 ${
-            clicked ? 'opacity-100' : 'opacity-20'
+            clicked ? 'opacity-100' : 'opacity-0'
           }`}
           autoPlay
           loop
@@ -178,20 +178,25 @@ export function MeetIntro() {
             <div className="text-center space-y-6">
               {!clicked && (
                 <div className="flex justify-center">
-                  <div
-                    className="bg-white rounded-full p-6 md:p-8 shadow-lg hover:shadow-xl transition-shadow duration-300 cursor-pointer"
+                  <button
                     onClick={() =>
                       setCatExpression(catExpression === 'happy' ? 'neutral' : 'happy')
                     }
+                    className="shadow-lg hover:shadow-xl transition-shadow duration-300 cursor-pointer rounded-full"
+                    aria-label="avatar"
                   >
-                    <Image
-                      src="/little-kid-wearing-doctor-costume-play.png"
-                      alt="Dr. Whiskers"
-                      width={100}
-                      height={100}
-                      className="rounded-full"
-                    />
-                  </div>
+                    {/* 원형 래퍼: 중앙 크롭 + 흰색 테두리 */}
+                    <div className="relative w-[100px] h-[100px] rounded-full overflow-hidden border-6 border-white">
+                      {/* 2:1 가로 긴 이미지를 중앙 크롭 */}
+                      <Image
+                        src="/woman.png" // ← 가로로 긴 원본 배경 (2:1)
+                        alt="avatar"
+                        fill // 부모 박스 꽉 채움
+                        className="object-cover object-center scale-300 pt-7" // 중앙 크롭
+                        priority
+                      />
+                    </div>
+                  </button>
                 </div>
               )}
 
@@ -352,24 +357,26 @@ export function MeetIntro() {
             )}
 
             {/* ✅ 하단 미니 셀렉터: 반투명 검정 배경, 테두리 없음, 흰 글자, 둥글게 (clicked=true일 때만) */}
-            
           </div>
           {clicked && (
-              <div className="flex justify-center">
-                <Select
-                  value={currentLanguage}
-                  onValueChange={(v) => setCurrentLanguage(v as 'th' | 'ko')}
+            <div className="flex justify-center">
+              <Select
+                value={currentLanguage}
+                onValueChange={(v) => setCurrentLanguage(v as 'th' | 'ko')}
+              >
+                <SelectTrigger
+                  variant="white"
+                  className="h-7 mt-3 px-3 text-xs w-[80px] rounded-b-sm bg-black/20 text-white border-0 focus:ring-0"
                 >
-                  <SelectTrigger variant="white" className="h-7 mt-3 px-3 text-xs w-[80px] rounded-b-sm bg-black/20 text-white border-0 focus:ring-0">
-                    <SelectValue placeholder="Lang" />
-                  </SelectTrigger>
-                  <SelectContent className="text-xs bg-black/80 text-white">
-                    <SelectItem value="th">ภาษาไทย</SelectItem>
-                    <SelectItem value="ko">한국어</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+                  <SelectValue placeholder="Lang" />
+                </SelectTrigger>
+                <SelectContent className="text-xs bg-black/80 text-white">
+                  <SelectItem value="th">ภาษาไทย</SelectItem>
+                  <SelectItem value="ko">한국어</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
       </div>
     </div>
