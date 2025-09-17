@@ -1,28 +1,40 @@
 'use client';
-import React, { useMemo, useState } from 'react';
+
+import React, { useMemo, useState, useEffect } from 'react';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
 import Image from 'next/image';
 
 type Turn = {
-  user_local: string; // 입력 언어 원문(TH 또는 KO)
-  ai_local: string; // 동일 언어 LLM 응답
-  // 선택: 의사용 한국어 로그(태국어 세션일 때만 채움)
-  user_ko?: string;
+  user_local: string;   // 입력 언어 원문(TH 또는 KO)
+  ai_local: string;     // 동일 언어 LLM 응답
+  user_ko?: string;     // TH 세션일 때 의사용 한국어 로그
   ai_ko?: string;
 };
 
-export default function InterPreter() {
+interface InterpreterProps {
+  clicked: boolean;
+  setClicked: (val: boolean) => void;
+  lang: 'th' | 'ko'; // 상위 MeetIntro에서 내려주는 현재 언어
+}
+
+export default function InterPreter({ clicked, setClicked, lang }: InterpreterProps) {
   const { transcript, listening, resetTranscript, browserSupportsSpeechRecognition } =
     useSpeechRecognition();
 
-  const synth = useMemo(() => (typeof window !== 'undefined' ? window.speechSynthesis : null), []);
+  const synth = useMemo(
+    () => (typeof window !== 'undefined' ? window.speechSynthesis : null),
+    []
+  );
 
-  // 🔽 사용자가 말할(=답변받을) 언어: "th" | "ko"
-  const [srcLang, setSrcLang] = useState<'th' | 'ko'>('th');
+  const [srcLang, setSrcLang] = useState<'th' | 'ko'>(lang);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [logKo, setLogKo] = useState(true); // 태국어 세션에서 KO 로그 저장할지
+
+  useEffect(() => {
+    setSrcLang(lang);
+  }, [lang]);
 
   if (!browserSupportsSpeechRecognition) {
     return <span>이 브라우저는 음성 인식을 지원하지 않습니다. (Chrome/Edge 권장)</span>;
@@ -32,9 +44,7 @@ export default function InterPreter() {
     if (!synth) return;
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = lang === 'th' ? 'th-TH' : 'ko-KR';
-    try {
-      synth.cancel();
-    } catch {}
+    try { synth.cancel(); } catch {}
     synth.speak(utterance);
   };
 
@@ -116,89 +126,42 @@ export default function InterPreter() {
 
   return (
     <div className="max-w-xl mx-auto p-4 space-y-3">
-      {/* 언어 전환 & KO 로그 스위치 */}
-      <div className="flex items-center gap-3 text-sm mb-1">
-        <label className="flex items-center gap-1 hidden">
-          <span>입력/응답 언어</span>
-          <select
-            value={srcLang}
-            onChange={(e) => setSrcLang(e.target.value as 'th' | 'ko')}
-            className="border rounded px-2 py-1"
-          >
-            <option value="th">태국어</option>
-            <option value="ko">한국어</option>
-          </select>
-        </label>
-        <label className="flex items-center gap-1 ml-4 hidden">
-          <input type="checkbox" checked={logKo} onChange={(e) => setLogKo(e.target.checked)} />
-          의사용 한국어 로그 저장(TH 세션)
-        </label>
+      {/* 컨트롤 (가운데 정렬) */}
+      <div className="flex flex-col items-center gap-4">
+        {/* 듣기 버튼: 한 번 누르면 clicked=true 유지 */}
         <button
-          onClick={() => speakLocal('테스트 음성입니다.', 'ko')}
-          className="ml-auto border px-2 py-1 rounded hidden"
-        >
-          🔊 KO 테스트
-        </button>
-        <button
-          onClick={() => speakLocal('สวัสดีค่ะ ทดสอบเสียงค่ะ', 'th')}
-          className="border px-2 py-1 rounded hidden"
-        >
-          🔊 TH 테스트
-        </button>
-      </div>
-
-      {/* 컨트롤 */}
-      <div className="flex gap-2 items-center justify-center">
-        <button
-          onClick={start}
+          onClick={() => { if (!clicked) setClicked(true); start(); }}
           disabled={isLoading}
-          className="px-3 py-1 rounded text-white item-center"
+          className={`cursor-pointer ${clicked ? 'pt-96' : 'pt-0'}`}
+          aria-label="듣기 시작"
         >
-          <Image alt="head" src="/headset.png" width={60} height={60} className="inline mr-1" />
-          <span className="hidden">
-            {listening ? '듣는 중…' : `듣기 시작(${srcLang.toUpperCase()})`}
-          </span>
+          <Image
+            alt={clicked ? 'mic' : 'headset'}
+            src={clicked ? '/mic.png' : '/headset.png'}
+            width={60}
+            height={60}
+          />
         </button>
-        <button onClick={oneTurn} disabled={isLoading} className="px-3 py-1 rounded border hidden">
-          전송(1턴)
-        </button>
-        <button
-          onClick={() => {
-            resetTranscript();
-            window.speechSynthesis?.cancel();
-          }}
-          className="px-3 py-1 rounded border hidden"
-        >
-          초기화
-        </button>
-        <span className="text-sm text-gray-600 hidden">STT: {transcript || '…'}</span>
+ {/* ✅ 전송 버튼: clicked=true일 때만 노출되는 원형 버튼 */}
+  {clicked && (
+    <button
+      onClick={oneTurn}
+      disabled={isLoading}
+      aria-label="전송"
+      title="전송"
+      className="flex items-center justify-center w-2 h-2 rounded-full bg-white shadow-md hover:shadow-lg transition cursor-pointer"
+    >
+
+    </button>
+  )}
+
       </div>
 
-      {err && <div className="text-sm text-red-600">⚠ {err}</div>}
-
-      {/* 대화 로그 */}
-      <div className="space-y-2 hidden">
-        {turns.map((t, i) => (
-          <div key={i} className="border rounded p-3 bg-white">
-            <div>
-              <b>👤 사용자({srcLang.toUpperCase()}):</b> {t.user_local}
-            </div>
-            {t.user_ko && (
-              <div className="text-gray-600">
-                <b>👤 사용자(KO):</b> {t.user_ko}
-              </div>
-            )}
-            <div className="mt-2 text-blue-700">
-              <b>🤖 봇({srcLang.toUpperCase()}):</b> {t.ai_local}
-            </div>
-            {t.ai_ko && (
-              <div className="text-gray-600">
-                <b>🤖 봇(KO):</b> {t.ai_ko}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
+      {/* 상태/오류 */}
+      {err && <div className="text-sm text-red-600 text-center">⚠ {err}</div>}
+      {/* 필요하면 아래 디버그 정보 노출
+      <div className="text-center text-xs text-gray-600">STT: {transcript || '…'} {listening?'(listening)':''}</div>
+      */}
     </div>
   );
 }
